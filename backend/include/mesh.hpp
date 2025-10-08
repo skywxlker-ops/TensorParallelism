@@ -1,37 +1,9 @@
-// #pragma once
-// #include <nccl.h>
-// #include <cuda_runtime.h>
-// #include <iostream>
-// #include <vector>
-
-// #define NCCL_CHECK(cmd) do { \
-//     ncclResult_t r = cmd; \
-//     if (r != ncclSuccess) { \
-//         std::cerr << "NCCL error: " << ncclGetErrorString(r) << std::endl; \
-//         exit(EXIT_FAILURE); \
-//     } \
-// } while(0)
-
-// class Mesh {
-// public:
-//     Mesh(int num_gpus);
-//     ~Mesh();
-
-//     int size() const { return num_gpus_; }
-//     ncclComm_t getComm(int rank) const { return comms_[rank]; }
-
-// private:
-//     int num_gpus_;
-//     std::vector<ncclComm_t> comms_;
-//     std::vector<cudaStream_t> streams_;
-// };
-
-
 #pragma once
 #include <nccl.h>
 #include <cuda_runtime.h>
-#include <iostream>
 #include <vector>
+#include <iostream>
+#include "cudafunctions.hpp"
 
 #define NCCL_CHECK(cmd) do { \
     ncclResult_t r = cmd; \
@@ -41,24 +13,15 @@
     } \
 } while(0)
 
-#define CUDA_CHECK(cmd) do { \
-    cudaError_t e = cmd; \
-    if (e != cudaSuccess) { \
-        std::cerr << "CUDA error: " << cudaGetErrorString(e) << std::endl; \
-        exit(EXIT_FAILURE); \
-    } \
-} while(0)
-
 class Mesh {
 public:
-    Mesh(int num_gpus);
+    Mesh();   // auto-detect GPUs
     ~Mesh();
 
     int size() const { return num_gpus_; }
     ncclComm_t getComm(int rank) const { return comms_[rank]; }
     cudaStream_t getStream(int rank) const { return streams_[rank]; }
 
-    // NCCL helpers
     void allReduce(float* data, int num_elements) const;
 
 private:
