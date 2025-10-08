@@ -61,3 +61,11 @@ Expected output:
     Implement advanced collectives (ReduceScatter, AllGather).
 
     Develop TP-aware model layers (Linear, MatMul, Softmax).
+---
+
+as of now
+the output is
+<img width="972" height="193" alt="Screenshot from 2025-10-08 16-41-17" src="https://github.com/user-attachments/assets/7739eef9-c9a0-4e92-94a5-5ab9d4beb109" />
+
+
+
