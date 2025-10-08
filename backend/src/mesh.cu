@@ -65,3 +65,5 @@ void Mesh::allReduce(float* data, int num_elements) const {
 
     CUDA_CHECK(cudaDeviceSynchronize());
 }
+
+

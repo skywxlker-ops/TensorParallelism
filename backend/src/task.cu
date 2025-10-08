@@ -99,3 +99,5 @@ void Task::runAllReduce(Mesh& mesh, std::vector<float*>& d_data, int num_element
         std::cout << "..." << std::endl;
     }
 }
+
+
