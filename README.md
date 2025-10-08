@@ -1,76 +1,63 @@
-# TensorParallel Backend
+# Tensor Parallelism Backend – Summary
 
-A minimal **Tensor Parallel (TP) backend** using CUDA + NCCL, providing multi-GPU mesh abstraction and collective operations.
-
----
-
-## 📦 Structure
-
-include/ # Mesh & Task headers
-src/ # Mesh & Task implementations
-tests/ # Test executables
-
+A lightweight multi-GPU tensor parallelism framework using **CUDA + NCCL**.
 
 ---
 
-## 🔹 Core Components
+## **Key Components**
 
-### Mesh
-- Initializes NCCL communicators & CUDA streams across GPUs.
-- Supports multi-GPU collectives (AllReduce).
+### **1. Device Utilities (`cudafunctions`)**
+- Detect GPUs: `device_count()`, `device_count_ensure_non_zero()`
+- Manage devices: `current_device()`, `set_device()`, `ExchangeDevice()`, `MaybeSetDevice()`
+- Synchronize: `device_synchronize()`
+- Ensures safe and consistent GPU handling across threads and tasks.
 
-```cpp
-Mesh mesh(num_gpus);
-mesh.allReduce(device_ptr, num_elements);
+### **2. Mesh**
+- Represents a set of GPUs.
+- Initializes **NCCL communicators** and **CUDA streams** per GPU.
+- Provides helper functions for collective operations (e.g., `allReduce`).
 
-Task
+### **3. Task**
+- Initializes tensors on each GPU.
+- Performs **AllReduce** across the mesh concurrently using threads.
+- Prints results for verification.
 
-    Grid-stride kernel for tensor initialization.
+---
 
-    Multi-threaded AllReduce to avoid deadlocks.
+## **Directory Structure**
 
-std::vector<float*> d_data(num_gpus);
-Task::initTensors(d_data, mesh, num_elements);
-Task::runAllReduce(mesh, d_data, num_elements);
+backend/
+include/ # mesh.hpp, task.hpp, cudafunctions.hpp
+src/ # mesh.cu, task.cu, cudafunctions.cpp
+tests/ # test_mesh.cpp, test_task.cpp
 
- Improvements
-Issue	Fix
-NCCL hangs	Multi-threaded AllReduce
-Illegal memory access	Synchronize kernels & streams
-Tiny tensors	Increased size (1024 elements)
-Memory leaks	Proper cleanup of streams & NCCL comms
- Usage
 
-nvcc -std=c++17 -Iinclude -lnccl -lpthread -o tests/test_task src/mesh.cu src/task.cu tests/test_task.cpp
-./tests/test_task
+---
 
-Expected output:
+## **How to Build & Run**
+
+### Compile
+```bash
+nvcc -Iinclude -o test_mesh tests/test_mesh.cpp src/cudafunctions.cpp src/mesh.cu -lnccl
+nvcc -Iinclude -o test_task tests/test_task.cpp src/cudafunctions.cpp src/mesh.cu src/task.cu -lnccl
+
+Run
+
+./test_mesh
+./test_task
+
+Sample Output (2 GPUs)
+
+test_mesh
 
 [Mesh] Initializing mesh with 2 GPUs...
-[Task] Performing AllReduce across 2 GPUs...
-[GPU 0] Output: 3 3 3 3 ...
-[GPU 1] Output: 3 3 3 3 ...
+[Mesh] NCCL communicators initialized successfully.
 [Mesh] Destroyed NCCL communicator.
 
- Next Steps
+test_task
 
-    Build a Tensor abstraction (shape, placement, mesh info).
+[Task] Performing AllReduce across 2 GPUs...
+[GPU 0] Output: 3 3 3 3 3 3 3 3 3 3 ...
+[GPU 1] Output: 3 3 3 3 3 3 3 3 3 3 ...
 
-    Integrate sharding & placement logic.
-
-    Implement advanced collectives (ReduceScatter, AllGather).
-
-    Develop TP-aware model layers (Linear, MatMul, Softmax).
----
-
-as of now
-the output is
-<img width="972" height="193" alt="Screenshot from 2025-10-08 16-41-17" src="https://github.com/user-attachments/assets/7739eef9-c9a0-4e92-94a5-5ab9d4beb109" />
-
-
-
-## Features
-- GPU mesh creation (Mesh class)
-- NCCL communicator initialization
-- Task abstraction for distributed operations
-- Example AllReduce task across multiple GPUs
+    Values show summed tensors across GPUs after AllReduce.
