@@ -5,20 +5,23 @@
 
 using DeviceIndex = int;
 
-#define CUDA_CHECK(call) do { \
-    cudaError_t err = call; \
-    if (err != cudaSuccess) { \
-        std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl; \
-        exit(EXIT_FAILURE); \
-    } \
-} while(0)
+// ================= Device Count =================
+int device_count_impl(bool fail_if_no_driver = false);
+DeviceIndex device_count() noexcept;
+DeviceIndex device_count_ensure_non_zero();
 
-// Core device utilities
-int device_count() noexcept;
-int device_count_ensure_non_zero();
+// ================= Current Device =================
 DeviceIndex current_device();
+
+// ================= Set Device =================
 void set_device(DeviceIndex device, bool force = false);
+
+// ================= Maybe Set Device =================
 void MaybeSetDevice(DeviceIndex device);
+
+// ================= Exchange Device =================
 DeviceIndex ExchangeDevice(DeviceIndex to_device);
 DeviceIndex MaybeExchangeDevice(DeviceIndex to_device);
+
+// ================= Device Synchronization =================
 void device_synchronize();

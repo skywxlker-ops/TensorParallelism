@@ -1,25 +1,23 @@
 #include "mesh.hpp"
 #include "task.hpp"
 #include <vector>
-#include <iostream>
 
 int main() {
-    try {
-        Mesh mesh;
-        int num_gpus = mesh.size();
-        int num_elements = 1024;
+    Mesh mesh;
+    mesh.setMeshShape({2}); // auto 1D
+    mesh.createSubGroup("tensor", {0,1});
 
-        std::vector<float*> d_data;
-        Task::initTensors(d_data, mesh, num_elements);
-        Task::runAllReduce(mesh, d_data, num_elements);
+    int num_elements = 1024;
+    int num_gpus = mesh.size();
+    std::vector<float*> d_data(num_gpus);
 
-        for (int i = 0; i < num_gpus; ++i) {
-            set_device(i, true);
-            cudaFree(d_data[i]);
-        }
+    Task::initTensors(d_data, mesh, num_elements);
+    Task::runAllReduce(mesh, d_data, num_elements);
 
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+    for (int i = 0; i < num_gpus; ++i) {
+        DeviceIndex old = ExchangeDevice(i);
+        cudaFree(d_data[i]);
+        ExchangeDevice(old);
     }
 
     return 0;

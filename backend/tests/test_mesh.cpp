@@ -1,10 +1,8 @@
 #include "mesh.hpp"
 
 int main() {
-    try {
-        Mesh mesh;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
+    Mesh mesh;
+    mesh.setMeshShape({2}); // auto 1D, can do {2,2} for 4 GPUs
+    mesh.createSubGroup("tensor", {0,1});
     return 0;
 }
