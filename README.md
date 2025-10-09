@@ -61,3 +61,13 @@ test_task
 [GPU 1] Output: 3 3 3 3 3 3 3 3 3 3 ...
 
     Values show summed tensors across GPUs after AllReduce.
+
+Highlights
+
+    Centralized device management ensures safe GPU operations.
+
+    Mesh abstraction handles streams and communicators.
+
+    Threaded tasks enable concurrent GPU computations.
+
+    Easily extendable for more tensor operations or framework integration.
