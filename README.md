@@ -137,3 +137,43 @@ Expected output for 2 GPUs:
 [GPU 0] Output: 3 3 3 3 3 3 3 3 3 3 ...
 [GPU 1] Output: 3 3 3 3 3 3 3 3 3 3 ...
 [Mesh] Destroyed NCCL communicator.
+
+---
+## Flow - 
+
+[CUDA Devices]
+       │
+       ▼
+[cudafunctions.cpp]
+   ├─ device_count() / device_count_ensure_non_zero()
+   ├─ current_device()
+   ├─ set_device(), ExchangeDevice(), MaybeSetDevice()
+   └─ device_synchronize()
+       │
+       ▼
+[Mesh (mesh.hpp / mesh.cu)]
+   ├─ Initialize NCCL communicators & CUDA streams for each GPU
+   ├─ Set mesh_shape_ → compute mesh_coords_ (logical coords)
+   │      e.g., GPU 0 → [0], GPU 1 → [1]
+   ├─ createSubGroup(name, devices) → define logical subgroups
+   │      e.g., "tensor" subgroup: {0,1}
+   └─ getSubComm(name) → returns communicator for subgroup
+       │
+       ▼
+[Task (task.hpp / task.cu)]
+   ├─ initTensors(d_data, mesh, num_elements)
+   │      ├─ Allocate memory on each GPU using set_device()
+   │      └─ Initialize tensor values via initTensorKernel
+   └─ runAllReduce(mesh, d_data, num_elements)
+          ├─ Launch threads per GPU
+          ├─ Use Mesh subcommunicator or global communicator
+          ├─ Perform NCCL AllReduce
+          └─ Synchronize and copy results to host
+       │
+       ▼
+[Output / Verification]
+   ├─ Print logical coordinates
+   ├─ Print subgroup info
+   └─ Print AllReduce results (sum across GPUs)
+
+---
