@@ -24,16 +24,12 @@ public:
     ncclComm_t getComm(int rank) const { return comms_.at(rank); }
     cudaStream_t getStream(int rank) const { return streams_.at(rank); }
 
-    // Topology / Layout
     void setMeshShape(const std::vector<int64_t>& shape = {});
     const std::vector<int64_t>& meshShape() const { return mesh_shape_; }
     const std::map<int, std::vector<int>>& meshCoords() const { return mesh_coords_; }
 
-    // Subgroups
     void createSubGroup(const std::string& name, const std::vector<int>& devices);
     ncclComm_t getSubComm(const std::string& name) const;
-
-    // NCCL helpers
     void allReduce(float* data, int num_elements) const;
 
 private:

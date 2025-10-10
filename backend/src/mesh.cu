@@ -41,8 +41,6 @@ void Mesh::setMeshShape(const std::vector<int64_t>& shape) {
     std::vector<int64_t> coords(mesh_shape_.size(), 0);
     for (int i = 0; i < num_gpus_; ++i) {
         mesh_coords_[i] = std::vector<int>(coords.begin(), coords.end());
-
-        // Increment coordinates for next GPU
         for (int d = mesh_shape_.size() - 1; d >= 0; --d) {
             coords[d]++;
             if (coords[d] < mesh_shape_[d]) break;
@@ -50,14 +48,12 @@ void Mesh::setMeshShape(const std::vector<int64_t>& shape) {
         }
     }
 
-    // Print mesh shape
     std::cout << "[Mesh] Mesh shape set to [";
     for (size_t i = 0; i < mesh_shape_.size(); ++i) {
         std::cout << mesh_shape_[i] << (i + 1 < mesh_shape_.size() ? "x" : "");
     }
     std::cout << "]" << std::endl;
 
-    // Print logical coordinates for each GPU
     for (int i = 0; i < num_gpus_; ++i) {
         std::cout << "[Mesh] GPU " << i << " logical coords: [";
         for (size_t d = 0; d < mesh_coords_[i].size(); ++d) {
@@ -66,7 +62,6 @@ void Mesh::setMeshShape(const std::vector<int64_t>& shape) {
         std::cout << "]" << std::endl;
     }
 }
-
 
 void Mesh::createSubGroup(const std::string& name, const std::vector<int>& devices) {
     std::cout << "[Mesh] Creating subgroup '" << name << "' with devices: ";
