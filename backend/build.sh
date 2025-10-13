@@ -13,45 +13,47 @@ SRC_DIR="src"
 TEST_DIR="tests"
 BUILD_DIR="build"
 
+# Compiler commands
+GXX="g++-11"           # host C++ compiler
+NVCC="nvcc"
+CXXFLAGS="-I${INCLUDE_DIR}"
+LIBS="-lnccl -lcudart -lpthread"
+
 # Create build directory
 mkdir -p $BUILD_DIR
 
-# Compiler flags
-CXXFLAGS="-I${INCLUDE_DIR}"
-NVCC="nvcc"
-LIBS="-lnccl -lcudart -lpthread"
+# ===================== Compile sources =====================
+echo " Compiling cudafunctions.cpp..."
+$GXX -std=c++17 $CXXFLAGS -c ${SRC_DIR}/cudafunctions.cpp -o ${BUILD_DIR}/cudafunctions.o
 
-# =====================================================
-# Compile mesh test
-# =====================================================
-echo " Compiling test_mesh..."
-$NVCC $CXXFLAGS -o ${BUILD_DIR}/test_mesh \
-    ${TEST_DIR}/test_mesh.cpp \
-    ${SRC_DIR}/mesh.cu \
-    ${SRC_DIR}/cudafunctions.cpp \
-    $LIBS
+echo " Compiling mesh.cu..."
+$NVCC -ccbin $GXX -std=c++17 $CXXFLAGS -c ${SRC_DIR}/mesh.cu -o ${BUILD_DIR}/mesh.o
 
-# =====================================================
-# Compile task test
-# =====================================================
-echo " Compiling test_task..."
-$NVCC $CXXFLAGS -o ${BUILD_DIR}/test_task \
-    ${TEST_DIR}/test_task.cpp \
-    ${SRC_DIR}/mesh.cu \
-    ${SRC_DIR}/task.cu \
-    ${SRC_DIR}/cudafunctions.cpp \
-    $LIBS
+echo " Compiling dtensor.cu..."
+$NVCC -ccbin $GXX -std=c++17 $CXXFLAGS -c ${SRC_DIR}/dtensor.cu -o ${BUILD_DIR}/dtensor.o
 
-# =====================================================
-# Compile DTensor test
-# =====================================================
-echo " Compiling test_dtensor..."
-$NVCC $CXXFLAGS -o ${BUILD_DIR}/test_dtensor \
-    ${TEST_DIR}/test_dtensor.cpp \
-    ${SRC_DIR}/mesh.cu \
-    ${SRC_DIR}/dtensor.cu \
-    ${SRC_DIR}/cudafunctions.cpp \
-    $LIBS
+echo " Compiling task.cu..."
+$NVCC -ccbin $GXX -std=c++17 $CXXFLAGS -c ${SRC_DIR}/task.cu -o ${BUILD_DIR}/task.o
+
+# ===================== Compile test files =====================
+echo " Compiling test_mesh.cpp..."
+$GXX -std=c++17 $CXXFLAGS -c ${TEST_DIR}/test_mesh.cpp -o ${BUILD_DIR}/test_mesh.o
+
+echo " Compiling test_task.cpp..."
+$GXX -std=c++17 $CXXFLAGS -c ${TEST_DIR}/test_task.cpp -o ${BUILD_DIR}/test_task.o
+
+echo " Compiling test_dtensor.cpp..."
+$GXX -std=c++17 $CXXFLAGS -c ${TEST_DIR}/test_dtensor.cpp -o ${BUILD_DIR}/test_dtensor.o
+
+# ===================== Link tests =====================
+echo " Linking test_mesh..."
+$GXX ${BUILD_DIR}/cudafunctions.o ${BUILD_DIR}/mesh.o ${BUILD_DIR}/test_mesh.o $LIBS -o ${BUILD_DIR}/test_mesh
+
+echo " Linking test_task..."
+$GXX ${BUILD_DIR}/cudafunctions.o ${BUILD_DIR}/mesh.o ${BUILD_DIR}/task.o ${BUILD_DIR}/test_task.o $LIBS -o ${BUILD_DIR}/test_task
+
+echo " Linking test_dtensor..."
+$GXX ${BUILD_DIR}/cudafunctions.o ${BUILD_DIR}/mesh.o ${BUILD_DIR}/dtensor.o ${BUILD_DIR}/test_dtensor.o $LIBS -o ${BUILD_DIR}/test_dtensor
 
 echo " Build successful!"
 echo ""

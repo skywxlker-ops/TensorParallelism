@@ -1,21 +1,9 @@
 #include "dtensor.hpp"
 #include <iostream>
+#include <vector>
+#include <map>
+#include <string>
 #include <cmath>
-
-__global__ void initTensorKernel(float* data, float value, int64_t n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int64_t i = idx; i < n; i += stride) {
-        data[i] = value;
-    }
-}
-
-void DTensor::initOnGPU(float* d_data, float value, int64_t n) {
-    int blockSize = 256;
-    int gridSize = (n + blockSize - 1) / blockSize;
-    initTensorKernel<<<gridSize, blockSize>>>(d_data, value, n);
-    cudaDeviceSynchronize();
-}
 
 DTensor::DTensor(const std::vector<int64_t>& shape, Mesh& mesh)
     : shape_(shape), mesh_(mesh) {}
@@ -24,43 +12,34 @@ void DTensor::setLayout(const std::vector<std::string>& layout) {
     if (layout.size() != shape_.size())
         throw std::runtime_error("Layout size mismatch");
     layout_ = layout;
-    computeSlices();
 }
 
-void DTensor::computeSlices() {
-    slices_.clear();
+void DTensor::placeData(const float* host_data) {
     int num_gpus = mesh_.size();
+    slices_.clear();
 
     for (int gpu = 0; gpu < num_gpus; ++gpu) {
         std::vector<std::pair<int64_t,int64_t>> gpu_slices;
-        auto coords = mesh_.meshCoords().at(gpu); // logical coords of GPU
+
+        // Get logical coordinates from mesh
+        std::vector<int64_t> coords64;
+        const auto& coords = mesh_.meshCoords().at(gpu);
+        for (int c : coords) coords64.push_back(static_cast<int64_t>(c));
 
         for (size_t dim = 0; dim < shape_.size(); ++dim) {
-            const auto& layout_type = layout_[dim];
-
-            if (layout_type == "shard") {
+            if (layout_[dim] == "shard") {
                 int64_t step = shape_[dim] / num_gpus;
-                int64_t start = coords[0] * step; // simple 1D shard
+                int64_t start = coords64[0] * step;  // simple 1D example
                 int64_t end = (gpu == num_gpus - 1) ? shape_[dim] : start + step;
                 gpu_slices.push_back({start, end});
-            } else if (layout_type == "replicate") {
+            } else if (layout_[dim] == "replicate" || layout_[dim] == "partial") {
                 gpu_slices.push_back({0, shape_[dim]});
-            } else if (layout_type == "partial") {
-                int64_t step = shape_[dim] / num_gpus;
-                int64_t start = coords[0] * step;
-                int64_t end = start + step;
-                gpu_slices.push_back({start, end});
             } else {
                 throw std::runtime_error("Unknown layout type");
             }
         }
         slices_[gpu] = gpu_slices;
     }
-}
-
-void DTensor::placeData(const float* host_data) {
-    // Placeholder: actual GPU placement logic can go here
-    computeSlices();
 }
 
 void DTensor::printHostTensor() const {
