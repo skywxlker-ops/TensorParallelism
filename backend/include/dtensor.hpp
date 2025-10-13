@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <utility>
 
 class DTensor {
 public:
@@ -10,15 +11,15 @@ public:
 
     void setLayout(const std::vector<std::string>& layout);
     void placeData(const float* host_data);
-    void printHostTensor() const;
-    void printSlices() const;
+
+    void printHostTensor() const; // prints tensor shape
+    void printSlices() const;     // prints GPU slices and placements
 
 private:
-    std::vector<int64_t> shape_;                     // Global tensor shape
-    std::vector<std::string> layout_;                // Per-dimension placement: shard / replicate / partial
+    std::vector<int64_t> shape_;
+    std::vector<std::string> layout_;
     Mesh& mesh_;
-    std::map<int, std::vector<std::pair<int,int>>> slices_; // [start, end] per dim per GPU
 
-    // helper
-    std::vector<int64_t> computeLocalStartEnd(int dim, int coord, int mesh_dim_size) const;
+    // GPU -> vector of slices per dimension: [start,end)
+    std::map<int, std::vector<std::pair<int64_t,int64_t>>> slices_;
 };

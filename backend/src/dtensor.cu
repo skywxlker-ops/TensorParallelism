@@ -1,57 +1,52 @@
 #include "dtensor.hpp"
 #include <iostream>
-#include <cmath>
+#include <stdexcept>
 
 DTensor::DTensor(const std::vector<int64_t>& shape, Mesh& mesh)
     : shape_(shape), mesh_(mesh) {}
 
 void DTensor::setLayout(const std::vector<std::string>& layout) {
-    if (layout.size() != shape_.size())
-        throw std::runtime_error("Layout size mismatch with tensor rank");
+    if (layout.size() != shape_.size()) 
+        throw std::runtime_error("Layout size mismatch");
     layout_ = layout;
 }
 
-std::vector<int64_t> DTensor::computeLocalStartEnd(int dim, int coord, int mesh_dim_size) const {
-    // Divide tensor dim among mesh_dim_size GPUs if sharded
-    int64_t step = shape_[dim] / mesh_dim_size;
-    int64_t start = coord * step;
-    int64_t end = (coord == mesh_dim_size - 1) ? shape_[dim] : start + step;
-    return {start, end};
-}
-
 void DTensor::placeData(const float* host_data) {
+    int num_gpus = mesh_.size();
     slices_.clear();
 
-    const auto& mesh_shape = mesh_.meshShape();
-    const auto& mesh_coords = mesh_.meshCoords();
-    int num_gpus = mesh_.size();
+    // Convert mesh coordinates to int64_t
+    std::map<int, std::vector<int64_t>> mesh_coords;
+    for (int gpu = 0; gpu < num_gpus; ++gpu) {
+        const auto& coords_int = mesh_.meshCoords().at(gpu);
+        std::vector<int64_t> coords(coords_int.begin(), coords_int.end());
+        mesh_coords[gpu] = coords;
+    }
 
     for (int gpu = 0; gpu < num_gpus; ++gpu) {
-        const std::vector<int>& coords = mesh_coords.at(gpu);
-        std::vector<std::pair<int,int>> gpu_slices;
+        std::vector<std::pair<int64_t,int64_t>> gpu_slices;
 
         for (size_t dim = 0; dim < shape_.size(); ++dim) {
             if (layout_[dim] == "shard") {
-                int mesh_dim_size = (dim < mesh_shape.size()) ? mesh_shape[dim] : 1;
-                auto bounds = computeLocalStartEnd(dim, coords[dim], mesh_dim_size);
-                gpu_slices.push_back({(int)bounds[0], (int)bounds[1]});
-            } 
-            else if (layout_[dim] == "replicate") {
-                gpu_slices.push_back({0, (int)shape_[dim]});
-            }
-            else if (layout_[dim] == "partial") {
-                gpu_slices.push_back({0, (int)shape_[dim]});
-            }
-            else {
-                throw std::runtime_error("Unknown layout type: " + layout_[dim]);
+                int64_t step = shape_[dim] / num_gpus;
+                int64_t start = mesh_coords[gpu][dim] * step;
+                int64_t end = (gpu == num_gpus - 1) ? shape_[dim] : start + step;
+                gpu_slices.push_back({start, end});
+            } else if (layout_[dim] == "replicate") {
+                gpu_slices.push_back({0, shape_[dim]});
+            } else if (layout_[dim] == "partial") {
+                gpu_slices.push_back({0, shape_[dim]}); // placeholder for partial
+            } else {
+                throw std::runtime_error("Unknown layout type");
             }
         }
-        slices_[gpu] = gpu_slices;
+
+        slices_[gpu] = gpu_slices; // now types match: int64_t
     }
 }
 
 void DTensor::printHostTensor() const {
-    std::cout << "[DTensor] Global Tensor shape: [";
+    std::cout << "[DTensor] Original Host Tensor shape: [";
     for (size_t i = 0; i < shape_.size(); ++i)
         std::cout << shape_[i] << (i + 1 < shape_.size() ? "," : "");
     std::cout << "]" << std::endl;
