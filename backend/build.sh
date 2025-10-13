@@ -5,7 +5,7 @@
 
 set -e  # Exit on first error
 
-echo "🚀 Building TensorParallelism Backend..."
+echo " Building TensorParallelism Backend..."
 
 # Paths
 INCLUDE_DIR="include"
@@ -24,7 +24,7 @@ LIBS="-lnccl -lcudart -lpthread"
 # =====================================================
 # Compile mesh test
 # =====================================================
-echo "🧩 Compiling test_mesh..."
+echo " Compiling test_mesh..."
 $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_mesh \
     ${TEST_DIR}/test_mesh.cpp \
     ${SRC_DIR}/mesh.cu \
@@ -34,7 +34,7 @@ $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_mesh \
 # =====================================================
 # Compile task test
 # =====================================================
-echo "🧠 Compiling test_task..."
+echo " Compiling test_task..."
 $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_task \
     ${TEST_DIR}/test_task.cpp \
     ${SRC_DIR}/mesh.cu \
@@ -45,7 +45,7 @@ $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_task \
 # =====================================================
 # Compile DTensor test
 # =====================================================
-echo "🟢 Compiling test_dtensor..."
+echo " Compiling test_dtensor..."
 $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_dtensor \
     ${TEST_DIR}/test_dtensor.cpp \
     ${SRC_DIR}/mesh.cu \
@@ -53,7 +53,7 @@ $NVCC $CXXFLAGS -o ${BUILD_DIR}/test_dtensor \
     ${SRC_DIR}/cudafunctions.cpp \
     $LIBS
 
-echo "✅ Build successful!"
+echo " Build successful!"
 echo ""
 echo "Run tests with:"
 echo "  ./build/test_mesh"
