@@ -1,71 +1,45 @@
-TensorParallelism Backend
+# TensorParallelism Backend
 
-A minimal CUDA + NCCL backend simulating core components of tensor parallelism: device mesh, distributed tensor (DTensor), placements, and communication.
+A custom framework for distributed tensor computations and tensor parallelism on multi-GPU systems. Supports dynamic tensor slicing, sharding, replication, partial placements, and hybrid logical GPU simulations.
 
-Directory Structure:
+---
 
-backend/
+## Features
 
-include/
+- **DTensor**
+  - Dynamic tensor slicing across GPUs
+  - Placement types:
+    - `Shard` – tensor split across GPUs
+    - `Replicate` – full copy on all GPUs
+    - `Partial` – hybrid sharding and replication
+  - `printSlices()` to inspect GPU slices
 
-mesh.hpp
+- **DeviceMesh**
+  - N-dimensional logical mesh abstraction
+  - Maps logical GPUs to physical GPUs
+  - Supports 1D, 2D, and 3D layouts
 
-cudafunctions.hpp
+- **Logical GPUs**
+  - Simulate multiple GPUs per physical device
+  - Independent CUDA streams and memory regions
+  - Enables testing larger mesh topologies on limited hardware
 
-dtensor.hpp
+- **Hybrid NCCL Simulation**
+  - Local collectives on logical GPUs sharing a physical GPU
+  - Real NCCL collectives across physical GPUs
+  - Supports testing 2D/3D mesh collectives without extra hardware
 
-src/
+---
 
-mesh.cu
+## Build & Run
 
-cudafunctions.cpp
+```bash
+cd backend
+./build.sh                 # Compile all sources
+./build/test_dtensor       # Test DTensor
+./build/test_mesh          # Test mesh layouts
+./build/test_logical_gpu   # Test logical GPU functionality
+./build/test_logical_nccl  # Test hybrid NCCL simulation
+./build/test_task          # Test task execution
 
-dtensor.cu
 
-tests/
-
-test_mesh.cpp
-
-test_dtensor.cpp
-
-build.sh
-
-README.md
-
-Build Instructions:
-
-Make the build script executable: chmod +x build.sh
-
-Run: ./build.sh
-
-Executables are created under build/:
-
-./build/test_mesh
-
-./build/test_dtensor
-
-Execution Flow:
-
-Mesh Initialization: sets up GPU devices and NCCL communicators, builds logical mesh coordinates.
-
-DTensor Creation: global tensor (e.g., 8×4) divided across GPUs based on placements. Example:
-
-GPU 0 → rows [0,3], columns [0,3]
-
-GPU 1 → rows [4,7], columns [0,3]
-
-Printing and Cleanup: shows mesh, placements, and local slices for each GPU, cleans up NCCL communicators.
-
-Example Output:
-
-[Mesh] Initializing mesh with 2 GPUs...
-[Mesh] NCCL communicators initialized successfully.
-[Mesh] Mesh shape set to [2]
-[Mesh] GPU 0 logical coords: [0]
-[Mesh] GPU 1 logical coords: [1]
-[Mesh] Creating subgroup 'tensor' with devices: 0 1
-[DTensor] Global shape: [8 x 4]
-[DTensor Test] Printing GPU slices and placements:
-[GPU 0] Placement: shard,replicate | Slices per dim: [0,3] [0,3]
-[GPU 1] Placement: shard,replicate | Slices per dim: [4,7] [0,3]
-[Mesh] Destroyed NCCL communicator
