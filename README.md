@@ -31,6 +31,43 @@ A custom framework for distributed tensor computations and tensor parallelism on
 
 ---
 
+## Directory  
+
+```bash
+.
+├── backend
+│   ├── build
+│   │   ├── test_dtensor
+│   │   ├── test_logical_gpu
+│   │   ├── test_logical_nccl
+│   │   ├── test_mesh
+│   │   └── test_task
+│   ├── include
+│   │   ├── cudafunctions.hpp
+│   │   ├── dtensor.hpp
+│   │   ├── logical_gpu.hpp
+│   │   ├── mesh.hpp
+│   │   └── task.hpp
+│   ├── src
+│   │   ├── cudafunctions.cpp
+│   │   ├── dtensor.cu
+│   │   ├── dtensor_host.cpp
+│   │   ├── logical_gpu.cu
+│   │   ├── logical_gpu_kernel.cu
+│   │   ├── mesh.cu
+│   │   └── task.cu
+│   ├── tests
+│   │   ├── test_dtensor.cpp
+│   │   ├── test_logical_gpu.cu
+│   │   ├── test_logical_nccl.cpp
+│   │   ├── test_mesh.cpp
+│   │   └── test_task.cpp
+│   └── build.sh
+├── README.md
+├── show_dir.sh
+└── update_github.sh
+---
+
 ## Build & Run
 
 ```bash
