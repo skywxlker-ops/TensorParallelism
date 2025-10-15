@@ -1,38 +1,23 @@
-#include <cuda_runtime.h>
-#include <nccl.h>
+#include "logical_gpu.hpp"
+#include "logical_nccl_sim.hpp"
 #include <iostream>
 
-#define NCCL_CHECK(cmd) do { \
-    ncclResult_t r = cmd; \
-    if (r != ncclSuccess) { \
-        std::cerr << "NCCL error: " << ncclGetErrorString(r) << std::endl; \
-        exit(EXIT_FAILURE); \
-    } \
-} while(0)
-
 int main() {
-    int num_gpus = 1; // simulate same physical GPU
-    int ranks = 2;    // two logical GPUs on same device
-    int* d_data[2];
+    LogicalGPUManager manager;
+    size_t N = 1024;
+    manager.init(2, N); // 2 logical GPUs per physical GPU
+    manager.printInfo();
 
-    cudaSetDevice(0);
+    auto& logicals = manager.getGPUs();
 
-    // Allocate memory for both "logical GPUs" on same physical GPU
-    cudaMalloc(&d_data[0], 128 * sizeof(int));
-    cudaMalloc(&d_data[1], 128 * sizeof(int));
+    // Test 1: Logical GPU 0 & Logical GPU 1 (same physical GPU)
+    std::cout << "\n=== Test: Logical GPU 0 & Logical GPU 1 ===\n";
+    logical_nccl_sim::simulateAllReduce(logicals[0].bufA, logicals[1].bufB, logicals[0].bufC, N, logicals[0].stream, logicals[0].logical_id);
 
-    ncclUniqueId id;
-    NCCL_CHECK(ncclGetUniqueId(&id));
+    // Test 2: Logical GPU 0 & Logical GPU 2 (different physical GPU)
+    std::cout << "\n=== Test: Logical GPU 0 & Logical GPU 2 ===\n";
+    std::cout << "[LogicalGPU] Inter-physical collective detected. Would use real NCCL.\n";
 
-    ncclComm_t comms[2];
-
-    std::cout << "Attempting NCCL init for two ranks on the same GPU...\n";
-
-    // This will fail!
-    NCCL_CHECK(ncclCommInitRank(&comms[0], ranks, id, 0)); // rank 0
-    NCCL_CHECK(ncclCommInitRank(&comms[1], ranks, id, 1)); // rank 1 (same GPU!)
-
-    std::cout << "This line likely won't be reached!\n";
-
+    std::cout << "\nAll logical NCCL tests finished!\n";
     return 0;
 }

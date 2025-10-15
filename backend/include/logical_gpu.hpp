@@ -2,24 +2,28 @@
 #include <cuda_runtime.h>
 #include <vector>
 #include <iostream>
-#include <cassert>
+#include "logical_nccl_sim.hpp"
 
 struct LogicalGPU {
     int logical_id;
     int physical_id;
+    float* bufA;
+    float* bufB;
+    float* bufC;
     cudaStream_t stream;
-    void* mem_base;
-    size_t mem_size;
 
-    LogicalGPU() : logical_id(-1), physical_id(-1), stream(nullptr), mem_base(nullptr), mem_size(0) {}
+    LogicalGPU() 
+        : logical_id(-1), physical_id(-1),
+          bufA(nullptr), bufB(nullptr), bufC(nullptr), stream(nullptr) {}
 };
 
 class LogicalGPUManager {
 public:
-    void init(int logical_per_phys, size_t mem_per_logical);
+    void init(int logical_per_phys, size_t N_per_buffer);
     void printInfo() const;
-    const std::vector<LogicalGPU>& getLogicalGPUs() const { return logical_gpus_; }
+    std::vector<LogicalGPU>& getGPUs() { return logical_gpus_; }
 
 private:
     std::vector<LogicalGPU> logical_gpus_;
+    size_t N_per_buffer_;
 };
