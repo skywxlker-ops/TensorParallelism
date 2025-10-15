@@ -67,7 +67,7 @@ A custom framework for distributed tensor computations and tensor parallelism on
 ├── show_dir.sh
 └── update_github.sh
 ---
-
+---
 ## Build & Run
 
 ```bash
