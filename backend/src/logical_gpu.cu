@@ -30,8 +30,13 @@ void LogicalGPUManager::init(int logical_per_phys, size_t N_per_buffer) {
 
             // Initialize buffers
             std::vector<float> host_init(N_per_buffer_, lgpu.logical_id + 1);
-            cudaMemcpyAsync(lgpu.bufA, host_init.data(), N_per_buffer_ * sizeof(float), cudaMemcpyHostToDevice, lgpu.stream);
-            cudaMemcpyAsync(lgpu.bufB, host_init.data(), N_per_buffer_ * sizeof(float), cudaMemcpyHostToDevice, lgpu.stream);
+            cudaMemcpyAsync(lgpu.bufA, host_init.data(), N_per_buffer_ * sizeof(float),
+                            cudaMemcpyHostToDevice, lgpu.stream);
+            cudaMemcpyAsync(lgpu.bufB, host_init.data(), N_per_buffer_ * sizeof(float),
+                            cudaMemcpyHostToDevice, lgpu.stream);
+
+            // 🔧 Added synchronization to ensure initialization completes
+            cudaStreamSynchronize(lgpu.stream);
 
             logical_gpus_.push_back(lgpu);
         }
