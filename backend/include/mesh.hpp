@@ -1,43 +1,24 @@
 #pragma once
-#include <nccl.h>
-#include <cuda_runtime.h>
-#include <iostream>
-#include <map>
 #include <vector>
-#include <string>
-#include "cudafunctions.hpp"
+#include <iostream>
+#include <cuda_runtime.h>
 
-#define NCCL_CHECK(cmd) do { \
-    ncclResult_t r = cmd; \
-    if (r != ncclSuccess) { \
-        std::cerr << "NCCL error: " << ncclGetErrorString(r) << std::endl; \
-        exit(EXIT_FAILURE); \
-    } \
-} while(0)
+namespace logical_nccl_sim {
+    void simulateAllReduce(float* sendbuf, float* recvbuf, float* tmpbuf,
+                           unsigned long count, cudaStream_t* stream, int rank);
+}
 
 class Mesh {
 public:
-    Mesh();
+    Mesh(int num_physical, int logical_per_physical);
     ~Mesh();
 
-    int size() const { return num_gpus_; }
-    ncclComm_t getComm(int rank) const { return comms_.at(rank); }
-    cudaStream_t getStream(int rank) const { return streams_.at(rank); }
-
-    void setMeshShape(const std::vector<int64_t>& shape = {});
-    const std::vector<int64_t>& meshShape() const { return mesh_shape_; }
-    const std::map<int, std::vector<int>>& meshCoords() const { return mesh_coords_; }
-
-    void createSubGroup(const std::string& name, const std::vector<int>& devices);
-    ncclComm_t getSubComm(const std::string& name) const;
-    void allReduce(float* data, int num_elements) const;
+    void allReduce(std::vector<float*>& buffers, int num_elements);
 
 private:
-    int num_gpus_;
-    std::vector<int64_t> mesh_shape_;
-    std::map<int, std::vector<int>> mesh_coords_;
-
-    std::vector<ncclComm_t> comms_;
+    int num_physical_;
+    int logical_per_physical_;
+    int num_logical_;
+    std::vector<int> logical_to_physical_;
     std::vector<cudaStream_t> streams_;
-    std::map<std::string, ncclComm_t> subgroups_;
 };

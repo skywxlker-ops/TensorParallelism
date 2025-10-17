@@ -4,6 +4,11 @@
 
 class Task {
 public:
-    static void initTensors(std::vector<float*>& d_data, Mesh& mesh, int num_elements = 1024);
-    static void runAllReduce(Mesh& mesh, std::vector<float*>& d_data, int num_elements = 1024);
+    Task(Mesh& mesh, int elements_per_tensor);
+    void run();
+
+private:
+    Mesh& mesh_;
+    int num_elements_;
+    std::vector<float*> buffers_;
 };

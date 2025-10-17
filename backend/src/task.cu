@@ -1,48 +1,25 @@
 #include "task.hpp"
 #include <iostream>
-#include <thread>
 
-__global__ void initTensorKernel(float* data, float val, int n) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int i = idx; i < n; i += stride) data[i] = val;
-}
-
-void Task::initTensors(std::vector<float*>& d_data, Mesh& mesh, int num_elements) {
-    int num_gpus = mesh.size();
-    for (int i = 0; i < num_gpus; ++i) {
-        DeviceIndex old = ExchangeDevice(i);
-        cudaMalloc(&d_data[i], num_elements * sizeof(float));
-        int threads = 256;
-        int blocks = (num_elements + threads - 1) / threads;
-        initTensorKernel<<<blocks, threads>>>(d_data[i], float(i + 1), num_elements);
-        cudaDeviceSynchronize();
-        ExchangeDevice(old);
+Task::Task(Mesh& mesh, int elements_per_tensor)
+    : mesh_(mesh), num_elements_(elements_per_tensor) 
+{
+    buffers_.resize(4); // 4 logical GPUs for this example
+    for (int i = 0; i < 4; ++i) {
+        buffers_[i] = new float[num_elements_];
+        for (int j = 0; j < num_elements_; ++j)
+            buffers_[i][j] = static_cast<float>(i + j);
     }
 }
 
-void Task::runAllReduce(Mesh& mesh, std::vector<float*>& d_data, int num_elements) {
-    int num_gpus = mesh.size();
-    std::cout << "[Task] Performing AllReduce across " << num_gpus << " GPUs..." << std::endl;
-
-    std::vector<std::thread> threads(num_gpus);
-    for (int i = 0; i < num_gpus; ++i) {
-        threads[i] = std::thread([&, i]() {
-            DeviceIndex old = ExchangeDevice(i);
-            mesh.allReduce(d_data[i], num_elements);
-            ExchangeDevice(old);
-        });
-    }
-
-    for (auto& t : threads) t.join();
-
-    std::vector<float> h_output(num_elements);
-    for (int i = 0; i < num_gpus; ++i) {
-        DeviceIndex old = ExchangeDevice(i);
-        cudaMemcpy(h_output.data(), d_data[i], num_elements * sizeof(float), cudaMemcpyDeviceToHost);
-        std::cout << "[GPU " << i << "] Output: ";
-        for (int j = 0; j < 10; ++j) std::cout << h_output[j] << " ";
-        std::cout << "..." << std::endl;
-        ExchangeDevice(old);
+void Task::run() {
+    std::cout << "[Task] Running AllReduce...\n";
+    mesh_.allReduce(buffers_, num_elements_);
+    std::cout << "[Task] AllReduce done. Sample values:\n";
+    for (int i = 0; i < 4; ++i) {
+        std::cout << "GPU " << i << ": ";
+        for (int j = 0; j < std::min(5, num_elements_); ++j)
+            std::cout << buffers_[i][j] << " ";
+        std::cout << "\n";
     }
 }

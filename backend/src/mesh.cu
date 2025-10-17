@@ -1,87 +1,41 @@
 #include "mesh.hpp"
+#include "logical_nccl_sim.hpp"
 
-Mesh::Mesh() {
-    num_gpus_ = device_count_ensure_non_zero();
-    std::cout << "[Mesh] Initializing mesh with " << num_gpus_ << " GPUs..." << std::endl;
+Mesh::Mesh(int num_physical, int logical_per_physical)
+    : num_physical_(num_physical),
+      logical_per_physical_(logical_per_physical),
+      num_logical_(num_physical * logical_per_physical)
+{
+    std::cout << "[Mesh] Initializing mesh with " << num_physical_ << " GPUs...\n";
 
-    comms_.resize(num_gpus_);
-    streams_.resize(num_gpus_);
+    // map logical -> physical
+    for (int i = 0; i < num_logical_; i++)
+        logical_to_physical_.push_back(i % num_physical_);
 
-    std::vector<int> devs(num_gpus_);
-    for (int i = 0; i < num_gpus_; ++i) {
-        devs[i] = i;
-        DeviceIndex old = ExchangeDevice(i);
+    // create streams
+    streams_.resize(num_logical_);
+    for (int i = 0; i < num_logical_; i++)
         cudaStreamCreate(&streams_[i]);
-        ExchangeDevice(old);
-    }
-
-    NCCL_CHECK(ncclCommInitAll(comms_.data(), num_gpus_, devs.data()));
-    std::cout << "[Mesh] NCCL communicators initialized successfully." << std::endl;
+    
+    std::cout << "[Mesh] Initialized " << num_logical_ << " logical GPUs across "
+              << num_physical_ << " physical GPUs.\n";
 }
 
 Mesh::~Mesh() {
-    for (int i = 0; i < num_gpus_; ++i) {
-        DeviceIndex old = ExchangeDevice(i);
-        ncclCommDestroy(comms_[i]);
-        cudaStreamDestroy(streams_[i]);
-        ExchangeDevice(old);
-    }
-    for (auto& [name, comm] : subgroups_) ncclCommDestroy(comm);
-    std::cout << "[Mesh] Destroyed NCCL communicator." << std::endl;
+    for (auto& s : streams_)
+        cudaStreamDestroy(s);
 }
 
-void Mesh::setMeshShape(const std::vector<int64_t>& shape) {
-    mesh_shape_ = shape.empty() ? std::vector<int64_t>{num_gpus_} : shape;
-
-    int total = 1;
-    for (auto s : mesh_shape_) total *= s;
-    if (total != num_gpus_) throw std::runtime_error("Mesh shape product must equal number of GPUs.");
-
-    mesh_coords_.clear();
-    std::vector<int64_t> coords(mesh_shape_.size(), 0);
-    for (int i = 0; i < num_gpus_; ++i) {
-        mesh_coords_[i] = std::vector<int>(coords.begin(), coords.end());
-        for (int d = mesh_shape_.size() - 1; d >= 0; --d) {
-            coords[d]++;
-            if (coords[d] < mesh_shape_[d]) break;
-            coords[d] = 0;
-        }
+void Mesh::allReduce(std::vector<float*>& buffers, int num_elements) {
+    for (int i = 0; i < num_logical_; i++) {
+        logical_nccl_sim::simulateAllReduce(
+            buffers[i],   // send
+            buffers[i],   // recv
+            buffers[i],   // tmp
+            num_elements,
+            &streams_[i],
+            logical_to_physical_[i]
+        );
+        std::cout << "[SimNCCL] Logical GPU " << i << " completed AllReduce.\n";
     }
-
-    std::cout << "[Mesh] Mesh shape set to [";
-    for (size_t i = 0; i < mesh_shape_.size(); ++i) {
-        std::cout << mesh_shape_[i] << (i + 1 < mesh_shape_.size() ? "x" : "");
-    }
-    std::cout << "]" << std::endl;
-
-    for (int i = 0; i < num_gpus_; ++i) {
-        std::cout << "[Mesh] GPU " << i << " logical coords: [";
-        for (size_t d = 0; d < mesh_coords_[i].size(); ++d) {
-            std::cout << mesh_coords_[i][d] << (d + 1 < mesh_coords_[i].size() ? "," : "");
-        }
-        std::cout << "]" << std::endl;
-    }
-}
-
-void Mesh::createSubGroup(const std::string& name, const std::vector<int>& devices) {
-    std::cout << "[Mesh] Creating subgroup '" << name << "' with devices: ";
-    for (auto d : devices) std::cout << d << " ";
-    std::cout << std::endl;
-
-    ncclComm_t subcomm;
-    NCCL_CHECK(ncclCommInitAll(&subcomm, devices.size(), devices.data()));
-    subgroups_[name] = subcomm;
-}
-
-ncclComm_t Mesh::getSubComm(const std::string& name) const {
-    auto it = subgroups_.find(name);
-    if (it == subgroups_.end()) throw std::runtime_error("Subgroup not found: " + name);
-    return it->second;
-}
-
-void Mesh::allReduce(float* data, int num_elements) const {
-    int rank;
-    cudaGetDevice(&rank);
-    NCCL_CHECK(ncclAllReduce(data, data, num_elements, ncclFloat, ncclSum, comms_[rank], streams_[rank]));
-    cudaDeviceSynchronize();
 }
