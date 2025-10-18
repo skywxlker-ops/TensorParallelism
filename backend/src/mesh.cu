@@ -10,7 +10,11 @@ Mesh::Mesh(int numPhysical, int logicalsPerPhysical, int bufSize)
 
     for (int i = 0; i < total_logical_; ++i) {
         cudaMalloc(&buffers_[i], buffer_size_ * sizeof(float));
-        cudaMemset(buffers_[i], 0, buffer_size_ * sizeof(float));
+
+        // Fill each buffer with a unique sequence (i, i+1, ...)
+        std::vector<float> temp(bufSize);
+        for (int j = 0; j < bufSize; ++j) temp[j] = i + j;
+        cudaMemcpy(buffers_[i], temp.data(), bufSize * sizeof(float), cudaMemcpyHostToDevice);
     }
 
     std::cout << "[Mesh] Initialized " << total_logical_ << " logical GPUs." << std::endl;
