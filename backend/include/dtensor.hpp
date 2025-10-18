@@ -1,8 +1,10 @@
 #pragma once
 #include "mesh.hpp"
 #include <vector>
-#include <string>
 #include <map>
+#include <utility>
+#include <iostream>
+#include <string>
 
 class DTensor {
 public:
@@ -14,16 +16,13 @@ public:
     void printHostTensor() const;
     void printSlices() const;
 
-    // GPU initialization
     void initOnGPU(float* d_data, float value, int64_t n);
 
 private:
+    void computeSlices();
+
     std::vector<int64_t> shape_;
     std::vector<std::string> layout_;
     Mesh& mesh_;
-
-    // slices_[gpu][dim] = {start, end}
     std::map<int, std::vector<std::pair<int64_t,int64_t>>> slices_;
-
-    void computeSlices();
 };

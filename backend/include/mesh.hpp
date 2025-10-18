@@ -1,19 +1,25 @@
 #pragma once
-#include <vector>
 #include <iostream>
+#include <vector>
+#include <map>
+#include <cuda_runtime.h>
 
 class Mesh {
 public:
-    Mesh(int num_logical = 4, int buffer_size = 5);
-    ~Mesh();
+    Mesh(int num_logical = 1, int logicals_per_phys = 1);
 
-    int getSize() const { return total_logical_; }
-    float* getBuffer(int idx) { return buffers_[idx].data(); }
+    int size() const { return total_logical_; }
 
-    void simulateAllReduce();
+    // Simulated AllReduce across logical GPUs
+    void simulateAllReduce(std::vector<float*>& buffers, int N);
+
+    // Logical coordinates of each GPU
+    const std::map<int, std::vector<int>>& meshCoords() const { return logical_coords_; }
 
 private:
+    int num_physical_;
+    int logicals_per_phys_;
     int total_logical_;
-    int buffer_size_;
-    std::vector<std::vector<float>> buffers_;
+    std::map<int,int> logicalToPhysical; // mapping logical->physical
+    std::map<int,std::vector<int>> logical_coords_; // simple 1D coord per GPU
 };

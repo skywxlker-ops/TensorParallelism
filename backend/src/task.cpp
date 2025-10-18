@@ -1,17 +1,15 @@
 #include "task.hpp"
+#include <cuda_runtime.h>
 #include <iostream>
 
-void runAllReduceTask(Mesh& mesh) {
-    std::cout << "[Task] Running AllReduce task on mesh with size: " << mesh.getSize() << "\n";
-    mesh.simulateAllReduce();
+void runAllReduceTask(Mesh& mesh, std::vector<float*>& buffers, int N){
+    std::cout<<"[Task] Running AllReduce task on mesh with size: "<<mesh.size()<<std::endl;
+    mesh.simulateAllReduce(buffers,N);
+    std::cout<<"[Task] AllReduce completed. Result:"<<std::endl;
 
-    std::cout << "[Task] AllReduce completed. Result:\n";
-    int total = mesh.getSize();
-    int buffer_size = 5; // must match Mesh default
-
-    for(int i = 0; i < total; i++) {
-        for(int j = 0; j < buffer_size; j++)
-            std::cout << mesh.getBuffer(i)[j] << " ";
-        std::cout << "\n";
-    }
+    // print one buffer for verification
+    std::vector<float> hostBuf(N);
+    cudaMemcpy(hostBuf.data(), buffers[0], sizeof(float)*N, cudaMemcpyDeviceToHost);
+    for(int i=0;i<N;i++) std::cout<<hostBuf[i]<<" ";
+    std::cout<<std::endl;
 }
