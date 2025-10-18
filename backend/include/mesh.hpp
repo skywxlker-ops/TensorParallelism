@@ -1,23 +1,19 @@
 #pragma once
 #include <vector>
-#include <cuda_runtime.h>
+#include <iostream>
 
 class Mesh {
 public:
-    Mesh(int numPhysical = 1, int logicalsPerPhysical = 2, int bufSize = 5);
+    Mesh(int num_logical = 4, int buffer_size = 5);
     ~Mesh();
 
     int getSize() const { return total_logical_; }
-    int getTotalLogical() const { return total_logical_; }
-    int getBufferSize() const { return buffer_size_; }
-    float* getBuffer(int idx) { return buffers_[idx]; }
+    float* getBuffer(int idx) { return buffers_[idx].data(); }
 
-    void simulateAllReduce(); // sums all logical GPU buffers
+    void simulateAllReduce();
 
 private:
-    int num_physical_;
-    int logicals_per_phys_;
     int total_logical_;
     int buffer_size_;
-    std::vector<float*> buffers_;
+    std::vector<std::vector<float>> buffers_;
 };

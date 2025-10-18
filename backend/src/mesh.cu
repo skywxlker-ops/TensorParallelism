@@ -1,27 +1,32 @@
 #include "mesh.hpp"
-#include <iostream>
+#include <numeric>
 
-Mesh::Mesh(int numPhysical, int logicalsPerPhysical, int bufSize)
-    : num_physical_(numPhysical), logicals_per_phys_(logicalsPerPhysical),
-      buffer_size_(bufSize) 
+Mesh::Mesh(int num_logical, int buffer_size)
+    : total_logical_(num_logical), buffer_size_(buffer_size)
 {
-    total_logical_ = num_physical_ * logicals_per_phys_;
     buffers_.resize(total_logical_);
-
-    for (int i = 0; i < total_logical_; ++i) {
-        cudaMalloc(&buffers_[i], buffer_size_ * sizeof(float));
-
-        // Fill each buffer with a unique sequence (i, i+1, ...)
-        std::vector<float> temp(bufSize);
-        for (int j = 0; j < bufSize; ++j) temp[j] = i + j;
-        cudaMemcpy(buffers_[i], temp.data(), bufSize * sizeof(float), cudaMemcpyHostToDevice);
+    for(int i = 0; i < total_logical_; i++) {
+        buffers_[i].resize(buffer_size_);
+        for(int j = 0; j < buffer_size_; j++)
+            buffers_[i][j] = float(i + j);  // initialize with sample values
     }
-
-    std::cout << "[Mesh] Initialized " << total_logical_ << " logical GPUs." << std::endl;
+    std::cout << "[Mesh] Initialized " << total_logical_ << " logical GPUs.\n";
 }
 
 Mesh::~Mesh() {
-    for (auto buf : buffers_) {
-        cudaFree(buf);
-    }
+    // vectors clean themselves
+}
+
+void Mesh::simulateAllReduce() {
+    std::vector<float> result(buffer_size_, 0.0f);
+    for(int i = 0; i < total_logical_; i++)
+        for(int j = 0; j < buffer_size_; j++)
+            result[j] += buffers_[i][j];
+
+    // Scatter back
+    for(int i = 0; i < total_logical_; i++)
+        for(int j = 0; j < buffer_size_; j++)
+            buffers_[i][j] = result[j];
+
+    std::cout << "[Mesh] Simulated intra-physical AllReduce done.\n";
 }
