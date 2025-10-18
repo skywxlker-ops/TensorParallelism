@@ -1,22 +1,41 @@
 #include "task.hpp"
+#include "mesh.hpp"
 #include <iostream>
+#include <vector>
+#include <cuda_runtime.h>
 
 void runAllReduceTask(Mesh& mesh) {
-    std::cout << "[Task] Running AllReduce task on mesh with size: "
-              << mesh.getTotalLogical() << std::endl;
+    int totalLogical = mesh.getTotalLogical();
+    std::cout << "[Task] Running AllReduce task on mesh with size: " 
+              << mesh.getSize() << std::endl;
 
-    int size = 5; // size of each buffer
-    for(int i=0;i<mesh.getTotalLogical();i++) {
-        mesh.simulateAllReduce(i, size);
+    if (totalLogical <= 0) {
+        std::cerr << "[Task] No logical GPUs available!" << std::endl;
+        return;
+    }
+
+    int bufSize = mesh.getBufferSize();
+    std::vector<float> hostBuf(bufSize, 0.0f);
+
+    // Step 1: Gather and sum
+    for (int i = 0; i < totalLogical; ++i) {
+        std::vector<float> temp(bufSize);
+        cudaMemcpy(temp.data(), mesh.getBuffer(i),
+                   bufSize * sizeof(float), cudaMemcpyDeviceToHost);
+        for (int j = 0; j < bufSize; ++j) {
+            hostBuf[j] += temp[j];
+        }
+    }
+
+    // Step 2: Scatter back
+    for (int i = 0; i < totalLogical; ++i) {
+        cudaMemcpy(mesh.getBuffer(i), hostBuf.data(),
+                   bufSize * sizeof(float), cudaMemcpyHostToDevice);
     }
 
     std::cout << "[Task] AllReduce completed. Result:\n";
-
-    // print results
-    float host_buffer[5];
-    for(int i=0;i<mesh.getTotalLogical();i++) {
-        cudaMemcpy(host_buffer, mesh.getBuffers()[i], sizeof(float)*size, cudaMemcpyDeviceToHost);
-        for(int j=0;j<size;j++) std::cout << host_buffer[j] << " ";
-        std::cout << "\n";
+    for (int j = 0; j < bufSize; ++j) {
+        std::cout << hostBuf[j] << " ";
     }
+    std::cout << std::endl;
 }
