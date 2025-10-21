@@ -1,63 +1,47 @@
 #include "dtensor.hpp"
-#include <iostream>
-#include <vector>
-#include <map>
-#include <string>
-#include <cmath>
 
-DTensor::DTensor(const std::vector<int64_t>& shape, Mesh& mesh)
-    : shape_(shape), mesh_(mesh) {}
+DTensor::DTensor(Mesh* mesh, size_t totalSize)
+    : mesh_(mesh), totalSize_(totalSize) {}
 
 void DTensor::setLayout(const std::vector<std::string>& layout) {
-    if (layout.size() != shape_.size())
-        throw std::runtime_error("Layout size mismatch");
     layout_ = layout;
 }
 
 void DTensor::placeData(const float* host_data) {
-    int num_gpus = mesh_.size();
-    slices_.clear();
+    int numGPUs = mesh_->size();
+    slicesPerGPU_.resize(numGPUs, std::vector<int>(4,0)); // [row_start,row_end,col_start,col_end]
 
-    for (int gpu = 0; gpu < num_gpus; ++gpu) {
-        std::vector<std::pair<int64_t,int64_t>> gpu_slices;
-
-        // Get logical coordinates from mesh
-        std::vector<int64_t> coords64;
-        const auto& coords = mesh_.meshCoords().at(gpu);
-        for (int c : coords) coords64.push_back(static_cast<int64_t>(c));
-
-        for (size_t dim = 0; dim < shape_.size(); ++dim) {
-            if (layout_[dim] == "shard") {
-                int64_t step = shape_[dim] / num_gpus;
-                int64_t start = coords64[0] * step;  // simple 1D example
-                int64_t end = (gpu == num_gpus - 1) ? shape_[dim] : start + step;
-                gpu_slices.push_back({start, end});
-            } else if (layout_[dim] == "replicate" || layout_[dim] == "partial") {
-                gpu_slices.push_back({0, shape_[dim]});
-            } else {
-                throw std::runtime_error("Unknown layout type");
-            }
+    if (layout_[0] == "shard") {
+        int rowsPerGPU = 8 / numGPUs; // assuming 8 rows for simplicity
+        for (int i=0; i<numGPUs; i++) {
+            slicesPerGPU_[i][0] = i*rowsPerGPU;
+            slicesPerGPU_[i][1] = (i+1)*rowsPerGPU - 1;
         }
-        slices_[gpu] = gpu_slices;
+    } else { // replicate
+        for (int i=0; i<numGPUs; i++) {
+            slicesPerGPU_[i][0] = 0;
+            slicesPerGPU_[i][1] = 7;
+        }
+    }
+
+    if (layout_[1] == "shard") {
+        int colsPerGPU = 4 / numGPUs; // assuming 4 columns
+        for (int i=0; i<numGPUs; i++) {
+            slicesPerGPU_[i][2] = i*colsPerGPU;
+            slicesPerGPU_[i][3] = (i+1)*colsPerGPU - 1;
+        }
+    } else { // replicate
+        for (int i=0; i<numGPUs; i++) {
+            slicesPerGPU_[i][2] = 0;
+            slicesPerGPU_[i][3] = 3;
+        }
     }
 }
 
-void DTensor::printHostTensor() const {
-    std::cout << "[DTensor] Original Host Tensor shape: [";
-    for (size_t i = 0; i < shape_.size(); ++i)
-        std::cout << shape_[i] << (i + 1 < shape_.size() ? "," : "");
-    std::cout << "]" << std::endl;
-}
-
 void DTensor::printSlices() const {
-    for (auto& [gpu, slice_vec] : slices_) {
-        std::cout << "[GPU " << gpu << "] Placement: ";
-        for (size_t dim = 0; dim < layout_.size(); ++dim)
-            std::cout << layout_[dim] << (dim + 1 < layout_.size() ? "," : " ");
-
-        std::cout << " | Slices per dim: ";
-        for (auto& s : slice_vec)
-            std::cout << "[" << s.first << "," << (s.second-1) << "] ";
-        std::cout << std::endl;
+    for (int i=0; i<mesh_->size(); i++) {
+        std::cout << "[GPU " << i << "] row: ["
+                  << slicesPerGPU_[i][0] << "," << slicesPerGPU_[i][1] << "], col: ["
+                  << slicesPerGPU_[i][2] << "," << slicesPerGPU_[i][3] << "]\n";
     }
 }

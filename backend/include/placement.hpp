@@ -2,10 +2,12 @@
 #include <vector>
 #include <string>
 
-enum class PlacementType { Sharded, Replicated, Partial };
+class Placement {
+public:
+    // layout = {"shard", "replicate"} per dimension
+    Placement(const std::vector<std::string>& layout);
+    const std::vector<std::string>& getLayout() const;
 
-struct Placement {
-    PlacementType type;
-    std::vector<int> device_ids;  // Logical device IDs involved
-    std::string dim;              // Dimension along which it's sharded
+private:
+    std::vector<std::string> layout_;
 };

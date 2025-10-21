@@ -1,21 +1,27 @@
-#include "../include/mesh.hpp"
-#include "../include/dtensor.hpp"
-#include <vector>
+#include <iostream>
+#include "dtensor.hpp"
+#include "mesh.hpp"
 
-int main(){
-    Mesh mesh(4,1); // 4 logical GPUs, 1 per physical
+int main() {
+    Mesh mesh(2);
+    mesh.printInfo();
 
     std::vector<int64_t> shape = {8,4};
-    DTensor t(shape, mesh);
 
-    t.setLayout({"shard","replicate"});
-    t.printHostTensor();
-    std::cout << "[DTensor Test] GPU slices and placements:\n";
-    t.printSlices();
+    // row-shard, col-replicate
+    DTensor dtensor1(&mesh, 8*4);
+    dtensor1.setLayout({"shard","replicate"});
+    dtensor1.placeData(nullptr);
+    std::cout << "[DTensor] Placement: row-shard, col-replicate\n";
+    dtensor1.printSlices();
+    std::cout << std::endl;
 
-    t.setLayout({"shard","partial"});
-    std::cout << "[DTensor Test] With 'partial' placement:\n";
-    t.printSlices();
+    // row-replicate, col-shard
+    DTensor dtensor2(&mesh, 8*4);
+    dtensor2.setLayout({"replicate","shard"});
+    dtensor2.placeData(nullptr);
+    std::cout << "[DTensor] Placement: row-replicate, col-shard\n";
+    dtensor2.printSlices();
 
     return 0;
 }
