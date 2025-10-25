@@ -59,6 +59,7 @@
         "typeinfo": "cpp",
         "__nullptr": "cpp",
         "map": "cpp",
-        "cfenv": "cpp"
+        "cfenv": "cpp",
+        "iomanip": "cpp"
     }
 }

@@ -1,4 +1,8 @@
 #include "dtensor.hpp"
+#include "process_group.hpp"
 
-// For now, all placement logic is host-side.
-// You can extend this file for device memory operations later.
+void dtensorAllReduce(DTensor& dt, ProcessGroup& pg) {
+    for (auto& slice : dt.slices()) {
+        pg.all_reduce(slice, 4, ncclFloat32)->wait(); // assuming slice size = 4 for demo
+    }
+}

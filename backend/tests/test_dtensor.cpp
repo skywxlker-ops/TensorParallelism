@@ -1,27 +1,32 @@
-#include <iostream>
-#include "dtensor.hpp"
-#include "mesh.hpp"
+#include "../include/mesh.hpp"
+#include "../include/dtensor.hpp"
+#include "../include/process_group.hpp"
+#include <thread>
 
 int main() {
-    Mesh mesh(2);
-    mesh.printInfo();
+    int world_size = 2;
 
-    std::vector<int64_t> shape = {8,4};
+    Mesh mesh(world_size);
+    mesh.printMesh();
 
-    // row-shard, col-replicate
-    DTensor dtensor1(&mesh, 8*4);
-    dtensor1.setLayout({"shard","replicate"});
-    dtensor1.placeData(nullptr);
-    std::cout << "[DTensor] Placement: row-shard, col-replicate\n";
-    dtensor1.printSlices();
-    std::cout << std::endl;
+    DTensor dt({8,4}, &mesh);
+    dt.fillWithRank();
+    std::cout << "Before AllReduce:\n";
+    dt.printSlices();
 
-    // row-replicate, col-shard
-    DTensor dtensor2(&mesh, 8*4);
-    dtensor2.setLayout({"replicate","shard"});
-    dtensor2.placeData(nullptr);
-    std::cout << "[DTensor] Placement: row-replicate, col-shard\n";
-    dtensor2.printSlices();
+    // Create ProcessGroup
+    ncclUniqueId id = mesh.getNCCLId();
+    std::vector<std::thread> threads;
+    for (int rank = 0; rank < world_size; ++rank) {
+        threads.emplace_back([rank, world_size, &dt, &id](){
+            ProcessGroup pg(rank, world_size, rank, id);
+            dtensorAllReduce(dt, pg);
+        });
+    }
+    for (auto& t : threads) t.join();
+
+    std::cout << "After AllReduce:\n";
+    dt.printSlices();
 
     return 0;
 }

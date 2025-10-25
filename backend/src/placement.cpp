@@ -1,8 +1,8 @@
 #include "placement.hpp"
 
-Placement::Placement(const std::vector<std::string>& layout)
-    : layout_(layout) {}
+Placement::Placement(std::string type, Mesh mesh) : type_(std::move(type)), mesh_(mesh) {}
 
-const std::vector<std::string>& Placement::getLayout() const {
-    return layout_;
+void Placement::describe() const {
+    std::cout << "[Placement] Type: " << type_ << std::endl;
+    mesh_.printMesh();
 }

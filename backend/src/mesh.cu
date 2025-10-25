@@ -1,15 +1,12 @@
 #include "mesh.hpp"
 
-Mesh::Mesh(int numPhysicalGPUs) : numGPUs_(numPhysicalGPUs) {
-    std::cout << "[Mesh] Initializing mesh with " << numGPUs_ << " GPUs..." << std::endl;
-    // logical GPU mapping (for testing)
-    logicalToPhysical_.resize(numGPUs_);
-    for (int i=0; i<numGPUs_; i++)
-        logicalToPhysical_[i] = i;
-}
+void Mesh::printMesh() const {
+    std::cout << "[Mesh] num_gpus: " << num_gpus_ 
+              << ", rows: " << rows_ 
+              << ", cols: " << cols_ << std::endl;
 
-void Mesh::printInfo() const {
-    for (int i=0; i<numGPUs_; i++) {
-        std::cout << "[Mesh] GPU " << i << " logical coords: [" << i << "]\n";
+    for (int i = 0; i < num_gpus_; ++i) {
+        std::cout << "  GPU " << i << " logical coords: [" 
+                  << logical_coords_[i] << "]" << std::endl;
     }
 }

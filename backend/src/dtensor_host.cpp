@@ -1,47 +1,40 @@
 #include "dtensor.hpp"
+#include <cuda_runtime.h>
+#include <iostream>
 
-DTensor::DTensor(Mesh* mesh, size_t totalSize)
-    : mesh_(mesh), totalSize_(totalSize) {}
+DTensor::DTensor(std::vector<int64_t> shape, Mesh& mesh) : shape(shape), mesh(mesh) {
+    numel = 1;
+    for (auto s : shape) numel *= s;
 
-void DTensor::setLayout(const std::vector<std::string>& layout) {
-    layout_ = layout;
+    device_buffers.resize(mesh.num_gpus);
+    for (int i = 0; i < mesh.num_gpus; ++i) {
+        cudaSetDevice(mesh.device_ids[i]);
+        cudaMalloc(&device_buffers[i], sizeof(float) * numel / mesh.num_gpus);
+    }
 }
 
-void DTensor::placeData(const float* host_data) {
-    int numGPUs = mesh_->size();
-    slicesPerGPU_.resize(numGPUs, std::vector<int>(4,0)); // [row_start,row_end,col_start,col_end]
+void DTensor::setLayout(std::vector<std::string> layout) {
+    this->layout = layout;
+    std::cout << "[DTensor] Layout set to {";
+    for (auto& l : layout) std::cout << l << " ";
+    std::cout << "}\n";
+}
 
-    if (layout_[0] == "shard") {
-        int rowsPerGPU = 8 / numGPUs; // assuming 8 rows for simplicity
-        for (int i=0; i<numGPUs; i++) {
-            slicesPerGPU_[i][0] = i*rowsPerGPU;
-            slicesPerGPU_[i][1] = (i+1)*rowsPerGPU - 1;
-        }
-    } else { // replicate
-        for (int i=0; i<numGPUs; i++) {
-            slicesPerGPU_[i][0] = 0;
-            slicesPerGPU_[i][1] = 7;
-        }
-    }
-
-    if (layout_[1] == "shard") {
-        int colsPerGPU = 4 / numGPUs; // assuming 4 columns
-        for (int i=0; i<numGPUs; i++) {
-            slicesPerGPU_[i][2] = i*colsPerGPU;
-            slicesPerGPU_[i][3] = (i+1)*colsPerGPU - 1;
-        }
-    } else { // replicate
-        for (int i=0; i<numGPUs; i++) {
-            slicesPerGPU_[i][2] = 0;
-            slicesPerGPU_[i][3] = 3;
-        }
-    }
+void DTensor::printHostTensor() const {
+    std::cout << "[DTensor] Host tensor shape: (";
+    for (size_t i = 0; i < shape.size(); ++i)
+        std::cout << shape[i] << (i + 1 < shape.size() ? ", " : "");
+    std::cout << ")\n";
 }
 
 void DTensor::printSlices() const {
-    for (int i=0; i<mesh_->size(); i++) {
-        std::cout << "[GPU " << i << "] row: ["
-                  << slicesPerGPU_[i][0] << "," << slicesPerGPU_[i][1] << "], col: ["
-                  << slicesPerGPU_[i][2] << "," << slicesPerGPU_[i][3] << "]\n";
+    std::cout << "[DTensor] Printing slice distribution across GPUs:\n";
+    for (int i = 0; i < mesh.num_gpus; ++i) {
+        std::cout << "  GPU " << i << " -> ";
+        if (layout.size() > 0)
+            std::cout << layout[0] << " ";
+        if (layout.size() > 1)
+            std::cout << layout[1];
+        std::cout << " slice\n";
     }
 }

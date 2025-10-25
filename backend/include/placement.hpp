@@ -1,13 +1,14 @@
 #pragma once
-#include <vector>
 #include <string>
+#include <iostream>
+#include "mesh.hpp"
+#include "process_group.hpp"
 
 class Placement {
 public:
-    // layout = {"shard", "replicate"} per dimension
-    Placement(const std::vector<std::string>& layout);
-    const std::vector<std::string>& getLayout() const;
-
+    Placement(std::string type, Mesh mesh);
+    void describe() const;
 private:
-    std::vector<std::string> layout_;
+    std::string type_;
+    Mesh mesh_;
 };
